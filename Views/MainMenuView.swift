@@ -4,6 +4,8 @@ struct MainMenuView: View {
     @State private var showScores = false
     @State private var showSettings = false
     @State private var showGame = false
+    @State private var playerName: String = ""
+    @State private var showNamePrompt = false
     @State private var animateTitle = false
     
     var body: some View {
@@ -74,11 +76,7 @@ struct MainMenuView: View {
                     // Buttons Section
                     VStack(spacing: 20) {
                         // Play Button (Primary)
-                        Button(action: { 
-                            withAnimation(.spring()) {
-                                showGame = true 
-                            }
-                        }) {
+                        Button(action: { showNamePrompt = true }) {
                             HStack {
                                 Image(systemName: "play.fill")
                                     .font(.title2)
@@ -155,7 +153,18 @@ struct MainMenuView: View {
             ThemeSelectionView()
         }
         .fullScreenCover(isPresented: $showGame) {
-            GameView()
+            GameView(playerName: playerName)
         }
+        .alert("Enter your name", isPresented: $showNamePrompt, actions: {
+            TextField("Name", text: $playerName)
+            Button("Start") {
+                if !playerName.trimmingCharacters(in: .whitespaces).isEmpty {
+                    showGame = true
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        }, message: {
+            Text("Please enter your name to start the game.")
+        })
     }
 }

@@ -3,7 +3,14 @@ import SwiftUI
 struct GameView: View {
     @ObservedObject var settings = SettingsViewModel()
     @StateObject var viewModel = GameViewModel()
+    @ObservedObject var scoresVM = ScoresViewModel()
     @Environment(\.dismiss) var dismiss
+    let playerName: String
+    @State private var showScoreAlert = false
+
+    init(playerName: String) {
+        self.playerName = playerName
+    }
 
     var body: some View {
         ZStack {
@@ -90,8 +97,15 @@ struct GameView: View {
                 Spacer(minLength: 10)
             }
         }
-        .alert("Congratulations!", isPresented: $viewModel.isGameOver) {
-            Button("Play Again") { viewModel.startNewGame() }
+        .onChange(of: viewModel.isGameOver) { isOver in
+            if isOver {
+                let entry = ScoreEntry(playerName: playerName, moves: viewModel.moves, date: Date())
+                scoresVM.addScore(entry)
+                showScoreAlert = true
+            }
+        }
+        .alert("Congratulations!", isPresented: $showScoreAlert) {
+            Button("Play Again") { viewModel.startNewGame(); showScoreAlert = false }
             Button("Return to Menu") { dismiss() }
         } message: {
             Text("You found all pairs in \(viewModel.moves) moves!")

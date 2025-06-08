@@ -1,20 +1,13 @@
 import SwiftUI
 
 struct ScoresView: View {
-    @Environment(\.dismiss) private var dismiss
-    @State private var animateCards = false
-    
-    // Données d'exemple - à remplacer par vos vraies données
-    let levelScores = [
-        ("Easy", "02:45", "15 moves"),
-        ("Medium", "04:23", "28 moves"),
-        ("Hard", "07:12", "45 moves"),
-        ("Expert", "12:30", "72 moves")
-    ]
+    @ObservedObject var scoresVM = ScoresViewModel()
+    @Environment(\.dismiss) var dismiss
+    @State private var animateParticles = false
     
     var body: some View {
         ZStack {
-            // Background gradient identique au menu principal
+            // Background gradient matching MainMenuView
             LinearGradient(
                 gradient: Gradient(colors: [
                     Color.purple.opacity(0.8),
@@ -29,43 +22,56 @@ struct ScoresView: View {
             // Floating particles effect
             ForEach(0..<10, id: \.self) { _ in
                 Circle()
-                    .fill(Color.white.opacity(0.08))
+                    .fill(Color.white.opacity(0.1))
                     .frame(width: CGFloat.random(in: 8...20))
                     .position(
                         x: CGFloat.random(in: 0...UIScreen.main.bounds.width),
                         y: CGFloat.random(in: 0...UIScreen.main.bounds.height)
                     )
-                    .animation(.easeInOut(duration: Double.random(in: 4...10)).repeatForever(autoreverses: true), value: animateCards)
+                    .animation(.easeInOut(duration: Double.random(in: 4...10)).repeatForever(autoreverses: true), value: animateParticles)
             }
             
             VStack(spacing: 30) {
-                // Header
+                // Header Section
                 HStack {
                     Button(action: { dismiss() }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.white.opacity(0.8))
+                        HStack(spacing: 8) {
+                            Image(systemName: "chevron.left")
+                                .font(.title2)
+                            Text("Back")
+                                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(Color.white.opacity(0.2))
+                        .cornerRadius(25)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 25)
+                                .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                        )
                     }
+                    
                     Spacer()
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, 20)
                 .padding(.top, 10)
                 
                 // Title Section
                 VStack(spacing: 15) {
                     ZStack {
                         Circle()
-                            .fill(Color.white.opacity(0.15))
+                            .fill(Color.white.opacity(0.2))
                             .frame(width: 80, height: 80)
                         
                         Image(systemName: "trophy.fill")
                             .font(.system(size: 35))
                             .foregroundColor(.yellow)
                     }
-                    .scaleEffect(animateCards ? 1.05 : 1.0)
-                    .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: animateCards)
+                    .scaleEffect(animateParticles ? 1.05 : 1.0)
+                    .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: animateParticles)
                     
-                    Text("Best Times")
+                    Text("Best Scores")
                         .font(.system(size: 32, weight: .bold, design: .rounded))
                         .foregroundStyle(
                             LinearGradient(
@@ -77,144 +83,133 @@ struct ScoresView: View {
                         .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 2)
                 }
                 
-                // Scores Cards
-                ScrollView(showsIndicators: false) {
-                    LazyVStack(spacing: 15) {
-                        ForEach(Array(levelScores.enumerated()), id: \.offset) { index, score in
-                            ScoreCard(
-                                level: score.0,
-                                time: score.1,
-                                moves: score.2,
-                                rank: index + 1
-                            )
-                            .scaleEffect(animateCards ? 1.0 : 0.8)
-                            .opacity(animateCards ? 1.0 : 0.0)
-                            .animation(.spring().delay(Double(index) * 0.1), value: animateCards)
+                // Content Section
+                if scoresVM.scores.isEmpty {
+                    Spacer()
+                    
+                    VStack(spacing: 20) {
+                        Image(systemName: "gamecontroller")
+                            .font(.system(size: 60))
+                            .foregroundColor(.white.opacity(0.6))
+                        
+                        Text("No scores yet!")
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                        
+                        Text("Play your first game to see your scores here")
+                            .font(.system(size: 16, weight: .medium, design: .rounded))
+                            .foregroundColor(.white.opacity(0.7))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                    }
+                    
+                    Spacer()
+                } else {
+                    // Scores List
+                    ScrollView {
+                        LazyVStack(spacing: 16) {
+                            ForEach(Array(scoresVM.scores.enumerated()), id: \.element.id) { index, entry in
+                                HStack(spacing: 16) {
+                                    // Rank indicator
+                                    ZStack {
+                                        Circle()
+                                            .fill(rankColor(for: index))
+                                            .frame(width: 40, height: 40)
+                                        
+                                        Text("\(index + 1)")
+                                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                                            .foregroundColor(.white)
+                                    }
+                                    
+                                    // Player info
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(entry.playerName)
+                                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                                            .foregroundColor(.white)
+                                        
+                                        Text(entry.date, style: .date)
+                                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                                            .foregroundColor(.white.opacity(0.7))
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    // Score
+                                    VStack(alignment: .trailing, spacing: 2) {
+                                        Text("\(entry.moves)")
+                                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                                            .foregroundColor(.white)
+                                        
+                                        Text("moves")
+                                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                                            .foregroundColor(.white.opacity(0.6))
+                                    }
+                                }
+                                .padding(20)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(Color.white.opacity(0.15))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 20)
+                                                .stroke(
+                                                    LinearGradient(
+                                                        colors: [Color.white.opacity(0.3), Color.white.opacity(0.1)],
+                                                        startPoint: .topLeading,
+                                                        endPoint: .bottomTrailing
+                                                    ),
+                                                    lineWidth: 1
+                                                )
+                                        )
+                                        .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
+                                )
+                            }
                         }
+                        .padding(.horizontal, 20)
                     }
-                    .padding(.horizontal, 20)
-                }
-                
-                Spacer()
-                
-                // Clear All Button
-                Button(action: {
-                    // Action pour effacer les scores
-                }) {
-                    HStack {
-                        Image(systemName: "trash.fill")
-                            .font(.title3)
-                        Text("Clear All Records")
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    
+                    // Clear Button
+                    Button(action: { scoresVM.clear() }) {
+                        HStack {
+                            Image(systemName: "trash.fill")
+                                .font(.title3)
+                            Text("Clear All Scores")
+                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 55)
+                        .background(
+                            LinearGradient(
+                                colors: [.red.opacity(0.8), .pink.opacity(0.8)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .foregroundColor(.white)
+                        .cornerRadius(27)
+                        .shadow(color: .red.opacity(0.3), radius: 8, x: 0, y: 4)
                     }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 55)
-                    .background(Color.red.opacity(0.8))
-                    .foregroundColor(.white)
-                    .cornerRadius(27.5)
-                    .shadow(color: .red.opacity(0.4), radius: 8, x: 0, y: 4)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 27.5)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                    )
+                    .padding(.horizontal, 30)
+                    .padding(.bottom, 20)
                 }
-                .padding(.horizontal, 30)
-                .padding(.bottom, 20)
             }
         }
         .onAppear {
-            animateCards = true
-        }
-    }
-}
-
-struct ScoreCard: View {
-    let level: String
-    let time: String
-    let moves: String
-    let rank: Int
-    
-    private var levelColor: Color {
-        switch level {
-        case "Easy": return .green
-        case "Medium": return .orange
-        case "Hard": return .red
-        case "Expert": return .purple
-        default: return .blue
+            animateParticles = true
         }
     }
     
-    private var rankEmoji: String {
-        switch rank {
-        case 1: return "🥇"
-        case 2: return "🥈"
-        case 3: return "🥉"
-        default: return "🏆"
+    // Helper function for rank colors
+    private func rankColor(for index: Int) -> Color {
+        switch index {
+        case 0:
+            return .yellow.opacity(0.8) // Gold
+        case 1:
+            return .gray.opacity(0.8)   // Silver
+        case 2:
+            return .orange.opacity(0.6) // Bronze
+        default:
+            return .blue.opacity(0.6)   // Regular
         }
-    }
-    
-    var body: some View {
-        HStack(spacing: 15) {
-            // Rank
-            VStack {
-                Text(rankEmoji)
-                    .font(.title2)
-                Text("#\(rank)")
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.7))
-            }
-            
-            // Level indicator
-            VStack {
-                Circle()
-                    .fill(levelColor)
-                    .frame(width: 12, height: 12)
-                Text(level)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
-            }
-            
-            Spacer()
-            
-            // Stats
-            VStack(alignment: .trailing, spacing: 5) {
-                HStack {
-                    Image(systemName: "clock.fill")
-                        .foregroundColor(.cyan)
-                        .font(.caption)
-                    Text(time)
-                        .font(.system(size: 16, weight: .bold, design: .monospaced))
-                        .foregroundColor(.white)
-                }
-                
-                HStack {
-                    Image(systemName: "hand.tap.fill")
-                        .foregroundColor(.yellow)
-                        .font(.caption)
-                    Text(moves)
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundColor(.white.opacity(0.8))
-                }
-            }
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 15)
-        .background(
-            RoundedRectangle(cornerRadius: 15)
-                .fill(Color.white.opacity(0.15))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 15)
-                        .stroke(
-                            LinearGradient(
-                                colors: [levelColor.opacity(0.6), Color.white.opacity(0.3)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                )
-        )
-        .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
     }
 }
 
